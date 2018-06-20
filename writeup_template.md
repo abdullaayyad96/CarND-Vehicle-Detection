@@ -12,6 +12,14 @@ The goals / steps of this project are the following:
 * Run the aforementioned pipeline on a video stream and create a heat map of recurring detections frame by frame to reject outliers and follow detected vehicles.
 * Estimate a bounding box for vehicles detected.
 
+The code for this project is distributed among several files:
+- trainingModel.py: Training and saving a classifier for vehicle detection
+- sampleTest.py: Test the trained model across different images
+- mainCode.py: The pipeline where the trained model is applied on several images and video to detect vehicles
+- cars.py: Defining a class that processes the results of the model and keeps track of vehicles across frames
+- findLines.py: The pipeline for lane detection
+- laneLine.py: Defining a class to keep track of lane lines across multiple frames
+
 [//]: # (Image References)
 [image1]: ./examples/car_not_car.png
 [image2]: ./examples/HOG_example.jpg
@@ -30,102 +38,72 @@ The goals / steps of this project are the following:
 
 ### Training the model
 
-The code for this step can be seen in the 'trainingModel.py' file of the repository which applies three main steps:
+The code associated with the training process is available in the 'trainingModel.py' file of the repository which applies three main steps:
 
 #### 1. Reading data
 
-The machine learning model developed in the code utilizes data from the [GTI vehicle image database](http://www.gti.ssr.upm.es/data/Vehicle_database.html), the [KITTI vision benchmark suite](http://www.cvlibs.net/datasets/kitti/). The first step is reading data from a zip file for these dlabeled ata bases for the 'vehicle' and 'non-vehicle' cases seperately. The correspodning code can be seen in lines 40-64 and 85-96 of 'trainingModel.py'. A sample of these images can be seen below:
+The machine learning model developed in the code utilizes data from the [GTI vehicle image database](http://www.gti.ssr.upm.es/data/Vehicle_database.html), the [KITTI vision benchmark suite](http://www.cvlibs.net/datasets/kitti/). The first step is reading data from a zip file for these labeled data bases for the 'vehicle' and 'non-vehicle' cases separately. The corresponding code can be seen in lines 40-64 and 85-96 of 'trainingModel.py'. A sample of these images can be seen below:
 
-[alt_text][image1]
+![alt_text][image1]
 
 #### 2. Feature Extraction
 
-The feature extraction process contains three types, Histogram of Oriented Gradients (HOG), Color Histograms, and spatial bining features. The code for these steps is provided in 'featureExtract.py'
+The feature extraction process contains three types, Histogram of Oriented Gradients (HOG), Color Histograms, and spatial binning features. The code for these steps is provided in 'featureExtract.py'
 
 ##### 2.1 Histogram of Oriented Gradients (HOG)
 
-The 'skimage.hog()' function was used for this puprose as seen in lines 7-26 of 'featureExtract.py'. Different parameters of `orientations`, `pixels_per_cell`, and `cells_per_block` were tested to arrive to a model, however they did not provide much of a differance toward the end results. Below is example of applying HOG on a vehcile and non-vehicle images in 'YUV' color space with `orientations=9`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
+The 'skimage.hog()' function was used for this purpose as seen in lines 7-26 of 'featureExtract.py'. Different parameters of `orientations`, `pixels_per_cell`, and `cells_per_block` were tested to arrive to a model, however they did not provide much of a difference toward the end results. Below is example of applying HOG on a vehicle and non-vehicle images in 'YUV' color space with `orientations=9`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
 
-[alt_text][image2]
+![alt_text][image2]
 
 ##### 2.2 Color histograms
 
-In addition HOG, color histogram features were applied and included as an added input to the trained model. The application can be seen in lines 36-48 of 'featureExtract.py' where histogram features were obtained using 'numpy.histogram' for each channel individualy and the concatnated together. The main parameter in this case is the number of bins, which was selected as 16 which is reasonable given the range of 0-255.
+In addition HOG, color histogram features were applied and included as an added input to the trained model. The application can be seen in lines 36-48 of 'featureExtract.py' where histogram features were obtained using 'numpy.histogram' for each channel individually and the concatenated together. The main parameter in this case is the number of bins, which was selected as 16 which is reasonable given the range of 0-255.
 
-##### 2.3 Spatial Bining
+##### 2.3 Spatial Binning
 
-Spatial bining was also used as a feature for training the model where 'cv2.resize' and 'ravel' where used to obtain a 1D list of the values of a downscaled image. This step can be seen in lines 29-33 of 'featureExtract.py' and the tunable parameter in this case is the 'spatial_size' which was selected to be (16, 16).
+Spatial binning was also used as a feature for training the model where 'cv2.resize' and 'ravel' where used to obtain a 1D list of the values of a downscaled image. This step can be seen in lines 29-33 of 'featureExtract.py' and the tunable parameter in this case is the 'spatial_size' which was selected to be (16, 16).
 
-The main parameters that remain to choose are the color space and color channels to use for the feature extraction process. 'YCrCb' and 'YUV' provided the highest accuracies upon training. However, upon testing other sets of images, a couple of shortcomings were observed. The models trained using 'YCrCb' and 'YUV' were very susciptible to shadows which caused several false positive detections. Additionally, the detection results were affected by the colors of the vehicles in an image. In order to compensate for these shortcomings, the saturation channel of the 'HLS' color space was added to the feature extraction and training processes and the final color spaces and channels used were: * All channels of 'YUV' color space * Saturation channel of 'HLS' color space
+The main parameters that remain to choose are the color space and color channels to use for the feature extraction process. 'YCrCb' and 'YUV' provided the highest accuracies upon training. However, upon testing other sets of images, a couple of shortcomings were observed. The models trained using 'YCrCb' and 'YUV' were very susceptible to shadows which caused several false positive detections. Additionally, the detection results were affected by the colors of the vehicles in an image. In order to compensate for these shortcomings, the saturation channel of the 'HLS' color space was added to the feature extraction and training processes and the final color spaces and channels used were: * All channels of 'YUV' color space * Saturation channel of 'HLS' color space
 
 The final selected parameters can be seen in lines 22-31 of 'trainingModel.py'.
 
 #### 3. Training the model
 
-Once all features are extracted, the next step is training a classifier. These steps can be observed 
+Once all features are extracted, the next step was training a classifier. A SVC was implemented using sklearn.SVC with the 'kernel' chosen as 'rbf' and the default values of 'C' and 'gamma' were used. Prior to passing the data to the classifier, the features and labels of the dataset were first divided into a training and testing set using 'sklearn.model_selection.train_test_split' and the features were normalized using 'sklearn.preprocessing.StandardScaler'. The model was then fitted using the training set and evaluated using the testing set yielding and accuracy of 99.2% using the features described in the previous section. The model was then saved to be used later using the 'pickle' package. These steps can be observed in lines 126-143 of 'trainingModel.py'. The figure below shows the result of the testing the classifier on random set of the training and testing data:
 
-### Histogram of Oriented Gradients (HOG)
-
-#### 1. Explain how (and identify where in your code) you extracted HOG features from the training images.
-
-The code for this step is contained in the first code cell of the IPython notebook (or in lines # through # of the file called `some_file.py`).  
-
-I started by reading in all the `vehicle` and `non-vehicle` images.  Here is an example of one of each of the `vehicle` and `non-vehicle` classes:
-
-![alt text][image1]
-
-I then explored different color spaces and different `skimage.hog()` parameters (`orientations`, `pixels_per_cell`, and `cells_per_block`).  I grabbed random images from each of the two classes and displayed them to get a feel for what the `skimage.hog()` output looks like.
-
-Here is an example using the `YCrCb` color space and HOG parameters of `orientations=8`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
+![alt_text][image3]
 
 
-![alt text][image2]
+### Sliding window search
 
-#### 2. Explain how you settled on your final choice of HOG parameters.
+In order to detect vehicles in an image, a sliding window search method was adopted where each window is then evaluated using the classifier discussed in previous sections. These windows were applied on different scales depending on the location in the image, where smaller windows were used for far objects and vice versa. These windows were then scaled back to an image size of (64,64) in order to be in line with images used in training the model. Additionally, since the location at which a vehicle exist is limited in an image, the sliding windows were also limited to the bottom half of the image. The image below shows the windows used in detecting vehicles in my code, where they were applied on three different scales: 1,1.5 and 2, which provided a good balance of accurate detection along with minimizing the required computations.
 
-I tried various combinations of parameters and...
+![alt_text][image4]
 
-#### 3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
+Rather than extracting HOG features for each window separately, HOG was applied to the entire image for all the required color spaces and channels. Color histograms and spatial binning were then obtained for each window separately and the features were passed to the classifier to determine whether each window contains a vehicle or not. The results of applying these steps to several sample images can be seen below:
 
-I trained a linear SVM using...
+![alt_text][image5]
 
-### Sliding Window Search
+The implementation of the sliding window search can be observed in the 'find_cars' function in lines 87-203 of 'mainCode.py'
 
-#### 1. Describe how (and identify where in your code) you implemented a sliding window search.  How did you decide what scales to search and how much to overlap windows?
+### Processing positive windows
 
-I decided to search random window positions at random scales all over the image and came up with this (ok just kidding I didn't actually ;):
+Once positive detections were observed, a filtering process was carried out in 'cars.py' to identify vehicle positions. This process mainly consists of obtaining a heatmap and thresholding it. The heatmap was obtained by basically adding up all the detected positions the a threshold was applied to filter out false positives. The heatmaps of several examples are shown below:
 
-![alt text][image3]
+![alt_text][image6]
 
-#### 2. Show some examples of test images to demonstrate how your pipeline is working.  What did you do to optimize the performance of your classifier?
+Finally, `scipy.ndimage.measurements.label()` was utilized to identify individual blobs in the heatmap and each blob was assumed to corresponded to a different vehicle. Bounding boxes were constructed over these to cover the area of each blob detected as illustrated in the examples below:
 
-Ultimately I searched on two scales using YCrCb 3-channel HOG features plus spatially binned color and histograms of color in the feature vector, which provided a nice result.  Here are some example images:
-
-![alt text][image4]
----
+![alt_text][image7]
 
 ### Video Implementation
 
-#### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the time with minimal false positives.)
-Here's a [link to my video result](./project_video.mp4)
+All of the steps described above were also implemented on a video by obtaining separate frame using the 'moviepy' package. The additional step for vehicle detection in video was averaging the heatmaps over different frames which can be seen in lines 47-49 of 'cars.py'. 
 
+Lanes detection feature was also added to the pipeline, detailed explanation of lane detection is provided in this [project](https://github.com/abdullaayyad96/CarND-Advanced-Lane-Lines).
 
-#### 2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
-
-I recorded the positions of positive detections in each frame of the video.  From the positive detections I created a heatmap and then thresholded that map to identify vehicle positions.  I then used `scipy.ndimage.measurements.label()` to identify individual blobs in the heatmap.  I then assumed each blob corresponded to a vehicle.  I constructed bounding boxes to cover the area of each blob detected.  
-
-Here's an example result showing the heatmap from a series of frames of video, the result of `scipy.ndimage.measurements.label()` and the bounding boxes then overlaid on the last frame of video:
-
-### Here are six frames and their corresponding heatmaps:
-
-![alt text][image5]
-
-### Here is the output of `scipy.ndimage.measurements.label()` on the integrated heatmap from all six frames:
-![alt text][image6]
-
-### Here the resulting bounding boxes are drawn onto the last frame in the series:
-![alt text][image7]
-
+Here's a [link to my video result](./test_videos/project_video.mp4)
 
 
 ---
@@ -134,5 +112,6 @@ Here's an example result showing the heatmap from a series of frames of video, t
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+The main shortcoming of my implementation of vehicle detection is high computational requirements making it unsuitable for real-time implementation. The main cause for this problem is utilizing two  different color spaces corresponding to four channels at which feature extraction is applied to. Reasonabily accurate results however can be obtained by only utilizing two channels, the Y channel of 'YUV' and the saturation channel of 'HLS'. 
+In order to reduce the computational requirments a smarter way of implementing the sliding window search should be adopted where a full search across the entire frame are only taken at a low frequency and restricting window search to areas around a previously detected object in most frames. 
 
