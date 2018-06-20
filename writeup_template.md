@@ -1,5 +1,4 @@
-## Writeup Template
-### You can use this file as a template for your writeup if you want to submit it as a markdown file, but feel free to use some other method and submit a pdf if you prefer.
+## Writeup
 
 ---
 
@@ -7,11 +6,10 @@
 
 The goals / steps of this project are the following:
 
-* Perform a Histogram of Oriented Gradients (HOG) feature extraction on a labeled training set of images and train a classifier Linear SVM classifier
+* Perform a Histogram of Oriented Gradients (HOG) feature extraction in addition to color histogram and binned color feature extraction on a labeled training set of images and train a SVM classifier
 * Optionally, you can also apply a color transform and append binned color features, as well as histograms of color, to your HOG feature vector. 
-* Note: for those first two steps don't forget to normalize your features and randomize a selection for training and testing.
-* Implement a sliding-window technique and use your trained classifier to search for vehicles in images.
-* Run your pipeline on a video stream (start with the test_video.mp4 and later implement on full project_video.mp4) and create a heat map of recurring detections frame by frame to reject outliers and follow detected vehicles.
+* Implement a sliding-window technique and utilize the trained classifier to search for vehicles in images.
+* Run the aforementioned pipeline on a video stream and create a heat map of recurring detections frame by frame to reject outliers and follow detected vehicles.
 * Estimate a bounding box for vehicles detected.
 
 [//]: # (Image References)
@@ -25,14 +23,46 @@ The goals / steps of this project are the following:
 [video1]: ./project_video.mp4
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/513/view) Points
-### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
+### Here I have considered the rubric points individually and this report describes how I addressed each point in my implementation.
 
 ---
 ### Writeup / README
 
-#### 1. Provide a Writeup / README that includes all the rubric points and how you addressed each one.  You can submit your writeup as markdown or pdf.  [Here](https://github.com/udacity/CarND-Vehicle-Detection/blob/master/writeup_template.md) is a template writeup for this project you can use as a guide and a starting point.  
+### Training the model
 
-You're reading it!
+The code for this step can be seen in the 'trainingModel.py' file of the repository which applies three main steps:
+
+#### 1. Reading data
+
+The machine learning model developed in the code utilizes data from the [GTI vehicle image database](http://www.gti.ssr.upm.es/data/Vehicle_database.html), the [KITTI vision benchmark suite](http://www.cvlibs.net/datasets/kitti/). The first step is reading data from a zip file for these dlabeled ata bases for the 'vehicle' and 'non-vehicle' cases seperately. The correspodning code can be seen in lines 40-64 and 85-96 of 'trainingModel.py'. A sample of these images can be seen below:
+
+[alt_text][image1]
+
+#### 2. Feature Extraction
+
+The feature extraction process contains three types, Histogram of Oriented Gradients (HOG), Color Histograms, and spatial bining features. The code for these steps is provided in 'featureExtract.py'
+
+##### 2.1 Histogram of Oriented Gradients (HOG)
+
+The 'skimage.hog()' function was used for this puprose as seen in lines 7-26 of 'featureExtract.py'. Different parameters of `orientations`, `pixels_per_cell`, and `cells_per_block` were tested to arrive to a model, however they did not provide much of a differance toward the end results. Below is example of applying HOG on a vehcile and non-vehicle images in 'YUV' color space with `orientations=9`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
+
+[alt_text][image2]
+
+##### 2.2 Color histograms
+
+In addition HOG, color histogram features were applied and included as an added input to the trained model. The application can be seen in lines 36-48 of 'featureExtract.py' where histogram features were obtained using 'numpy.histogram' for each channel individualy and the concatnated together. The main parameter in this case is the number of bins, which was selected as 16 which is reasonable given the range of 0-255.
+
+##### 2.3 Spatial Bining
+
+Spatial bining was also used as a feature for training the model where 'cv2.resize' and 'ravel' where used to obtain a 1D list of the values of a downscaled image. This step can be seen in lines 29-33 of 'featureExtract.py' and the tunable parameter in this case is the 'spatial_size' which was selected to be (16, 16).
+
+The main parameters that remain to choose are the color space and color channels to use for the feature extraction process. 'YCrCb' and 'YUV' provided the highest accuracies upon training. However, upon testing other sets of images, a couple of shortcomings were observed. The models trained using 'YCrCb' and 'YUV' were very susciptible to shadows which caused several false positive detections. Additionally, the detection results were affected by the colors of the vehicles in an image. In order to compensate for these shortcomings, the saturation channel of the 'HLS' color space was added to the feature extraction and training processes and the final color spaces and channels used were: * All channels of 'YUV' color space * Saturation channel of 'HLS' color space
+
+The final selected parameters can be seen in lines 22-31 of 'trainingModel.py'.
+
+#### 3. Training the model
+
+Once all features are extracted, the next step is training a classifier. These steps can be observed 
 
 ### Histogram of Oriented Gradients (HOG)
 
