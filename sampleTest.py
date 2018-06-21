@@ -17,11 +17,11 @@ X_scaler = pickle.load(open('saved_files/X_scalar_YUV_HLS.sav', 'rb'))
 clf = pickle.load(open('saved_files/trained_SVC_model_YUV_HLS.sav', 'rb'))
 
 #properties of feature extraction
-color_spaces = ['YUV', 'HLS'] # List of color spaces to use, can be RGB, HSV, LUV, HLS, YUV, YCrCb
+color_spaces = ['YUV', 'YUV', 'HLS'] # List of color spaces to use, can be RGB, HSV, LUV, HLS, YUV, YCrCb
 orient = 9  # HOG orientations
 pix_per_cell = 8 # HOG pixels per cell
 cell_per_block = 2 # HOG cells per block
-channels = ['ALL', 2] # Can be 0, 1, 2, or "ALL"
+channels = [0, 1, 2] # Can be 0, 1, 2, or "ALL"
 spatial_size = (16, 16) # Spatial binning dimensions
 hist_bins = 16    # Number of histogram bins
 spatial_feat = True # Spatial features on or off

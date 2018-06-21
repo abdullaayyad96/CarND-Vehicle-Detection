@@ -14,7 +14,7 @@ from cars import cars
 from laneLines import Line
 
 #set video or image mode
-mode = 'video'
+mode = 'image'
 #images directory
 img_dir = 'test_images/'
 img_out_dir = 'output_images/'
@@ -30,8 +30,8 @@ myLine = Line()
 myLine.set_param([720, 1280], 3/110, 3.7/640)
 
 #loading trained model and fitting scaler
-X_scaler = pickle.load(open('saved_files/X_scalar_YUV_HLS1.sav', 'rb'))
-clf = pickle.load(open('saved_files/trained_SVC_model_YUV_HLS1.sav', 'rb'))
+X_scaler = pickle.load(open('saved_files/X_scalar_YUV_HLS.sav', 'rb'))
+clf = pickle.load(open('saved_files/trained_SVC_model_YUV_HLS.sav', 'rb'))
 
 #properties of feature extraction
 color_spaces = ['YUV', 'YUV', 'HLS'] # List of color spaces to use, can be RGB, HSV, LUV, HLS, YUV, YCrCb
@@ -287,29 +287,7 @@ def main():
             output_image = process_image(image, car_obj=frame_cars, line_obj=myLine)
               
             #save image
-            mpimg.imsave(img_out_dir+images[i], output_image)
-
-            
-        #    plt.subplot(3,2,i+1)
-        #    plt.imshow(output_image)
-        #    plt.title('example: {}'.format(i+1))
-        #    #iterating images in directory
-        #plt.savefig('report_images/boxed_window.jpg')
-        #plt.show()
-
-        #plt.figure(figsize=(10,15))
-        
-        #for i in range(3):
-        #    image = mpimg.imread(img_dir+images[2*i])
-            
-        #    plt.subplot(3,2,2*i+1)
-        #    plt.imshow(image)
-        #    plt.subplot(3,2,2*i+2)
-        #    plt.imshow(heatmap[2*i], cmap='hot')
-
-        #plt.savefig('report_images/heatmaps.jpg')
-        #plt.show()
-            
+            mpimg.imsave(img_out_dir+images[i], output_image)          
             
     
     elif (mode == 'video'):
