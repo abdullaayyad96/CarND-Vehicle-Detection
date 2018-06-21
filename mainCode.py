@@ -242,9 +242,9 @@ def process_image(frame, car_obj=frame_cars, line_obj=myLine):
     #Searching cars
     
     #define scales and range to which each scale is applied
-    scales = [1.5, 1]
-    y_start = [420, 400]
-    y_stop = [620, 510]
+    scales = [2, 1.5, 1]
+    y_start = [550, 420, 400]
+    y_stop = [700, 620, 510]
 
     #Apply sliding window search and obtain windows with detected vehicles
     on_boxes = find_cars(frame, color_spaces, y_start, y_stop, scales, clf, X_scaler, orient, pix_per_cell, cell_per_block, channels, spatial_size, hist_bins, hist_feat, spatial_feat)
