@@ -13,15 +13,15 @@ from sklearn.svm import LinearSVC
 #loading data
 vehicle_dir = 'dataSet/vehicles.zip'
 nonvehicle_dir = 'dataSet/non-vehicles.zip'
-X_scaler = pickle.load(open('X_scalar_YUV_HLS.sav', 'rb'))
-clf = pickle.load(open('trained_SVC_model_YUV_HLS.sav', 'rb'))
+X_scaler = pickle.load(open('saved_files/X_scalar_YUV_HLS.sav', 'rb'))
+clf = pickle.load(open('saved_files/trained_SVC_model_YUV_HLS.sav', 'rb'))
 
 #properties of feature extraction
-color_spaces = ['YUV', 'YUV', 'HLS'] # List of color spaces to use, can be RGB, HSV, LUV, HLS, YUV, YCrCb
+color_spaces = ['YUV', 'HLS'] # List of color spaces to use, can be RGB, HSV, LUV, HLS, YUV, YCrCb
 orient = 9  # HOG orientations
 pix_per_cell = 8 # HOG pixels per cell
 cell_per_block = 2 # HOG cells per block
-channels = [0, 1, 2] # Can be 0, 1, 2, or "ALL"
+channels = ['ALL', 2] # Can be 0, 1, 2, or "ALL"
 spatial_size = (16, 16) # Spatial binning dimensions
 hist_bins = 16    # Number of histogram bins
 spatial_feat = True # Spatial features on or off
@@ -131,6 +131,48 @@ for i in range(n_images):
     plt.imshow(sample_images[i])
     plt.title('Actual: {} \n Prediction: {}'.format(actual_labels[i], result_labels[i]), fontsize=12)
 
-plt.savefig("output_images/classifier_test.jpg")
+plt.savefig("report_images/classifier_test.jpg")
 plt.show()
+
+
+
+# Visualizing sample images and hog feature extraction
+#plt.figure()
+#plt.suptitle('Sample images', fontsize=16)
+#plt.subplot(1,2,1)
+#plt.imshow(sample_images[1])
+#plt.title('Vehicle Image')
+#plt.subplot(1,2,2)
+#plt.imshow(sample_images[4])
+#plt.title('Non-Vehicle Image')
+
+#plt.savefig("report_images/sample_images.jpg")
+#plt.show()
+
+#vehicle_YUV = cv2.cvtColor(sample_images[1], cv2.COLOR_RGB2YUV)
+#nonvehicle_YUV = cv2.cvtColor(sample_images[4], cv2.COLOR_RGB2YUV)
+
+#plt.figure(figsize=(15, 15))
+#plt.suptitle('YUV HOG features', fontsize=16) 
+#for i in range(1,4):
+#    hogs, hog_vehicle = get_hog_features(vehicle_YUV[:,:,(i-1)], orient, pix_per_cell, cell_per_block, True)
+#    hogs, hog_vnonehicle = get_hog_features(nonvehicle_YUV[:,:,(i-1)], orient, pix_per_cell, cell_per_block, True)
+#    plt.subplot(3,4,4*i-3)
+#    plt.imshow(vehicle_YUV[:,:,i-1], cmap='gray')
+#    plt.title('Vehicle CH:{}'.format(i))
+#    plt.subplot(3,4,4*i-2)
+#    plt.imshow(hog_vehicle, cmap='gray')
+#    plt.title('Vehicle HOG CH:{}'.format(i))
+#    plt.subplot(3,4,4*i-1)
+#    plt.imshow(nonvehicle_YUV[:,:,i-1], cmap='gray')
+#    plt.title('Non-Vehicle CH:{}'.format(i))
+#    plt.subplot(3,4,4*i)
+#    plt.imshow(hog_vnonehicle, cmap='gray')
+#    plt.title('Non-Vehicle HOG CH:{}'.format(i))
+
+
+#plt.savefig("report_images/HOG_images.jpg")
+#plt.show()
+
+
 

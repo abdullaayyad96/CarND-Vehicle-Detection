@@ -44,7 +44,7 @@ class cars():
         else:
             #if image mode, avergae newly obtained heatmap with previous heatmap
             #averaging_val = 0.975 *(1-np.exp(-self.nframes/2))
-            averaging_val = 0.975 #
+            averaging_val = 0.9 
             self.heatmap = averaging_val*self.heatmap + (1-averaging_val)*new_heatmap
             
         self.nframes += 1 #update number of processed frames

@@ -8,7 +8,7 @@ import pickle
 import os
 from featureExtract import *
 from findLines import *
-from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
 from moviepy.editor import VideoFileClip
 from cars import cars
 from laneLines import Line
@@ -23,15 +23,15 @@ video_dir = 'test_videos/project_video.mp4'
 video_dir_out = 'output_videos/project_video.mp4'
 
 #create instance of car detection object
-frame_cars = cars(image_dim=[720, 1280], box_threshold=2, input_mode=mode)
+frame_cars = cars(image_dim=[720, 1280], box_threshold=1.5, input_mode=mode)
 
 #Create instance of line class
 myLine = Line()
 myLine.set_param([720, 1280], 3/110, 3.7/640)
 
 #loading trained model and fitting scaler
-X_scaler = pickle.load(open('X_scalar_YUV_HLS.sav', 'rb'))
-clf = pickle.load(open('trained_SVC_model_YUV_HLS.sav', 'rb'))
+X_scaler = pickle.load(open('saved_files/X_scalar_YUV_HLS1.sav', 'rb'))
+clf = pickle.load(open('saved_files/trained_SVC_model_YUV_HLS1.sav', 'rb'))
 
 #properties of feature extraction
 color_spaces = ['YUV', 'YUV', 'HLS'] # List of color spaces to use, can be RGB, HSV, LUV, HLS, YUV, YCrCb
@@ -45,15 +45,10 @@ spatial_feat = True # Spatial features on or off
 hist_feat = True # Histogram features on or off
 hog_feat = True # HOG features on or off
 
-#properties for sliding window
-x_start_stop = [None, None]
-y_start_stop = [400, 700]
-xy_window = (64, 64)
-xy_overlap=(0.5, 0.5)
 
 #Loading camera calibration files
-cal_mtx_dir = "cal_mtx.sav"
-cal_dist_dir = "cal_dist_dir"
+cal_mtx_dir = "saved_files/cal_mtx.sav"
+cal_dist_dir = "saved_files/cal_dist_dir"
 mtx = pickle.load(open(cal_mtx_dir, 'rb'))
 dist = pickle.load(open(cal_dist_dir, 'rb'))
 
@@ -83,123 +78,129 @@ def draw_labeled_bboxes(img, labels):
     # Return the image
     return img
 
-# Define a  function that can extract features using hog sub-sampling and make predictions
-def find_cars(img, color_spaces, ystart, ystop, scale, svc, scaler, orient, pix_per_cell, cell_per_block, channels, spatial_size, hist_bins, hist_feat, spatial_feat):
-    boxes = []
+# A function that applies sliding window search on different scales, extracts features and makes predictions
+def find_cars(img, color_spaces, y_start, y_stop, scales, svc, scaler, orient, pix_per_cell, cell_per_block, channels, spatial_size, hist_bins, hist_feat, spatial_feat):
 
+    boxes = [] #a list to store the windows at which a vehicle was detected
+
+    #Calculating the total numbe rof channels to be processes
     n_channels = 0
     for channel in channels:
         if channel=="ALL":
             n_channels+=3
         else:
             n_channels+=1
- 
-    img_tosearch = img[ystart:ystop,:,:]
-    # apply color conversion if other than 'RGB'
-    ctrans_tosearch = np.zeros([img_tosearch.shape[0], img_tosearch.shape[1], n_channels], dtype=np.uint8)
-    n_channels = 0
+
+    #obtain region of interest 
+    img_tosearch = img[min(y_start):max(y_stop),:,:]
+
+    # apply color conversion if other than 'RGB' for all the required color spaces
+    ctrans_tosearch_all = np.zeros([img_tosearch.shape[0], img_tosearch.shape[1], n_channels], dtype=np.uint8)
+    channel_jump = 0
     start_channel = 0
     for i in range(len(color_spaces)):
         if channels[i]=="ALL":
-            n_channels+=3
+            channel_jump+=3
             current_channel = np.linspace(0, 2, num=3, dtype=np.uint8)
         else:
-            n_channels+=1
+            channel_jump+=1
             current_channel = [channels[i]]
         color_space=color_spaces[i]
         if color_space != 'RGB':
             if color_space == 'HSV':
-                ctrans_tosearch[:,:, start_channel:n_channels] = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2HSV)[:,:,current_channel]
+                ctrans_tosearch_all[:,:, start_channel:channel_jump] = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2HSV)[:,:,current_channel]
             elif color_space == 'LUV':
-                ctrans_tosearch[:,:, start_channel:n_channels] = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2LUV)[:,:,current_channel]
+                ctrans_tosearch_all[:,:, start_channel:channel_jump] = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2LUV)[:,:,current_channel]
             elif color_space == 'HLS':
-                ctrans_tosearch[:,:, start_channel:n_channels] = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2HLS)[:,:,current_channel]
+                ctrans_tosearch_all[:,:, start_channel:channel_jump] = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2HLS)[:,:,current_channel]
             elif color_space == 'YUV':
-                ctrans_tosearch[:,:, start_channel:n_channels] = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2YUV)[:,:,current_channel]
+                ctrans_tosearch_all[:,:, start_channel:channel_jump] = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2YUV)[:,:,current_channel]
             elif color_space == 'YCrCb':
-                ctrans_tosearch[:,:, start_channel:n_channels] = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2YCrCb)[:,:,current_channel]
-        else: ctrans_tosearch[:,:, start_channel:n_channels] = np.copy(img_tosearch)[:,:,current_channel]
-        start_channel = n_channels
+                ctrans_tosearch_all[:,:, start_channel:channel_jump] = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2YCrCb)[:,:,current_channel]
+        else: ctrans_tosearch_all[:,:, start_channel:channel_jump] = np.copy(img_tosearch)[:,:,current_channel]
+        start_channel = channel_jump
      
-
-    if scale != 1:
-        imshape = ctrans_tosearch.shape
-        ctrans_tosearch = cv2.resize(ctrans_tosearch, (np.int(imshape[1]/scale), np.int(imshape[0]/scale)))
+    #Apply sliding window search on different scales
+    for i in range(len(scales)):
+        scale = scales[i]
+        ystart = y_start[i]
+        ystop = y_stop[i]
+        ctrans_tosearch = ctrans_tosearch_all[(ystart-min(y_start)):(ystop-min(y_start)),:,:]
+        if scale != 1:
+            imshape = ctrans_tosearch.shape
+            ctrans_tosearch = cv2.resize(ctrans_tosearch, (np.int(imshape[1]/scale), np.int(imshape[0]/scale)))
         
-    ch = ctrans_tosearch
+        ch = ctrans_tosearch
   
-    # Define blocks and steps as above
-    nxblocks = (ch[:,:,0].shape[1] // pix_per_cell) - cell_per_block + 1
-    nyblocks = (ch[:,:,0].shape[0] // pix_per_cell) - cell_per_block + 1 
-    nfeat_per_block = orient*cell_per_block**2
+        # Define blocks and steps as above
+        nxblocks = (ch[:,:,0].shape[1] // pix_per_cell) - cell_per_block + 1
+        nyblocks = (ch[:,:,0].shape[0] // pix_per_cell) - cell_per_block + 1 
+        nfeat_per_block = orient*cell_per_block**2
     
-    # 64 was the orginal sampling rate, with 8 cells and 8 pix per cell
-    window = 64
-    nblocks_per_window = (window // pix_per_cell) - cell_per_block + 1
-    cells_per_step = 2  # Instead of overlap, define how many cells to step
-    nxsteps = (nxblocks - nblocks_per_window) // cells_per_step + 1
-    nysteps = (nyblocks - nblocks_per_window) // cells_per_step + 1
+        # 64 was the orginal sampling rate, with 8 cells and 8 pix per cell
+        window = 64
+        nblocks_per_window = (window // pix_per_cell) - cell_per_block + 1
+        cells_per_step = 2  # how many cells to step for the sliding window
+        nxsteps = (nxblocks - nblocks_per_window) // cells_per_step + 1
+        nysteps = (nyblocks - nblocks_per_window) // cells_per_step + 1
     
-    # Compute individual channel HOG features for the entire image
-    hog_ch = []
-    for i in range(n_channels):
-        hog_ch.append(get_hog_features(ch[:,:,i], orient, pix_per_cell, cell_per_block, feature_vec=False))
+        # Compute individual channel HOG features for the entire image
+        hog_ch = []
+        for i in range(n_channels):
+            hog_ch.append(get_hog_features(ch[:,:,i], orient, pix_per_cell, cell_per_block, feature_vec=False))
     
-    for xb in range(nxsteps):
-        for yb in range(nysteps):
-            ypos = yb*cells_per_step
-            xpos = xb*cells_per_step
-            # Extract HOG for this patch
-            test_features=[]
-            start_channel = 0
-            for i in range(len(color_spaces)):
-                if channels[i]=="ALL":
-                    current_channel = np.linspace(0, 2, num=3, dtype=np.uint8)
-                else:
-                    current_channel = [channels[i]]
-                end_channel = start_channel+len(current_channel)
-                #hog_feat1 = hog1[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel() 
-                #hog_feat2 = hog2[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel() 
-                #hog_feat3 = hog3[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel() 
-                #hog_feat4 = hog4[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel() 
-                #hog_feat5 = hog5[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel() 
-                #hog_feat6 = hog6[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel() 
-                hog_features = []
-                for hog_chi in hog_ch[start_channel:end_channel]:
-                    hog_features.extend(hog_chi[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel())
-                #hog_features = hog_feat3
+        #The sliding window search
+        for xb in range(nxsteps):
+            for yb in range(nysteps):
+                ypos = yb*cells_per_step
+                xpos = xb*cells_per_step
 
-                xleft = xpos*pix_per_cell
-                ytop = ypos*pix_per_cell
+                # Extract HOG for this patch with the desired color channels
+                test_features = []
+                start_channel = 0
+                for i in range(len(color_spaces)):
+                    if channels[i]=="ALL":
+                        current_channel = np.linspace(0, 2, num=3, dtype=np.uint8)
+                    else:
+                        current_channel = [channels[i]]
+                    end_channel = start_channel+len(current_channel)
+                    
+                    hog_features = []
+                    for hog_chi in hog_ch[start_channel:end_channel]:
+                        hog_features.extend(hog_chi[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel())
 
-                # Extract the image patch
-                subimg = cv2.resize(ctrans_tosearch[ytop:ytop+window, xleft:xleft+window, start_channel:end_channel], (64,64))
+                    xleft = xpos*pix_per_cell
+                    ytop = ypos*pix_per_cell
+
+                    # Extract the image patch for the desired channel
+                    subimg = cv2.resize(ctrans_tosearch[ytop:ytop+window, xleft:xleft+window, start_channel:end_channel], (64,64))
             
-                # Get color features
-                if spatial_feat:
-                    spatial_features = bin_spatial(subimg, size=spatial_size)
-                else:
-                    spatial_features = []
-                if hist_feat:
-                    hist_features = color_hist(subimg, nbins=hist_bins)
-                else:
-                    hist_features = []
+                    # Get color features
+                    if spatial_feat:
+                        spatial_features = bin_spatial(subimg, size=spatial_size)
+                    else:
+                        spatial_features = []
+                    if hist_feat:
+                        hist_features = color_hist(subimg, nbins=hist_bins)
+                    else:
+                        hist_features = []
 
-                # Scale features and make a prediction
-                test_features.extend(np.hstack((spatial_features, hist_features, hog_features)).reshape(1, -1).ravel())  
-                start_channel += len(current_channel)
+                    #stack the HOG and color features of the current channels
+                    test_features.extend(np.hstack((spatial_features, hist_features, hog_features)).reshape(1, -1).ravel())  
+                    start_channel += len(current_channel)
 
 
-            #test_features = X_scaler.transform(np.hstack((shape_feat, hist_feat)).reshape(1, -1))  
-            test_features = scaler.transform(np.asarray(test_features).reshape(-1,len(test_features))) 
-            test_prediction = svc.predict(test_features)
+                # Scale features and make a prediction  
+                test_features = scaler.transform(np.asarray(test_features).reshape(-1,len(test_features))) 
+                test_prediction = svc.predict(test_features)
             
-            if test_prediction == 1:
-                xbox_left = np.int(xleft*scale)
-                ytop_draw = np.int(ytop*scale)
-                win_draw = np.int(window*scale) 
-                boxes.append(((xbox_left, ytop_draw+ystart),(xbox_left+win_draw,ytop_draw+win_draw+ystart)))
-                
+                #If a vehicle detected append the window the the boxes list
+                if test_prediction == 1:
+                    xbox_left = np.int(xleft*scale)
+                    ytop_draw = np.int(ytop*scale)
+                    win_draw = np.int(window*scale) 
+                    boxes.append(((xbox_left, ytop_draw+ystart),(xbox_left+win_draw,ytop_draw+win_draw+ystart)))
+               
     return boxes
 
 def process_image(frame, car_obj=frame_cars, line_obj=myLine):
@@ -207,6 +208,7 @@ def process_image(frame, car_obj=frame_cars, line_obj=myLine):
     frame = undistort(frame, mtx, dist)
 
     #Running line detection code
+
     #perform color and sobel thresholding
     thresh_image, color_img, region_masked_img = threshold(frame)  
   
@@ -237,24 +239,32 @@ def process_image(frame, car_obj=frame_cars, line_obj=myLine):
         #if no line were detected return an image marked with the desired text
         annotate_img = cv2.putText(input_img,"No Line Detected", (100,100), cv2.FONT_HERSHEY_COMPLEX, 1, 255)
 
-    #find cars 
-    on_boxes=[]
-    on_boxes.extend(find_cars(frame, color_spaces, 550+64, 700, 3, clf, X_scaler, orient, pix_per_cell, cell_per_block, channels, spatial_size, hist_bins, hist_feat, spatial_feat))
-    on_boxes.extend(find_cars(frame, color_spaces, 400, 550, 1, clf, X_scaler, orient, pix_per_cell, cell_per_block, channels, spatial_size, hist_bins, hist_feat, spatial_feat))
+    #Searching cars
+    
+    #define scales and range to which each scale is applied
+    scales = [1.5, 1]
+    y_start = [420, 400]
+    y_stop = [620, 510]
 
+    #Apply sliding window search and obtain windows with detected vehicles
+    on_boxes = find_cars(frame, color_spaces, y_start, y_stop, scales, clf, X_scaler, orient, pix_per_cell, cell_per_block, channels, spatial_size, hist_bins, hist_feat, spatial_feat)
+
+    #draw the detected boxes
     boxed_image = draw_boxes(frame, on_boxes)
 
-    #pass to cars object
+    #pass to cars object for processing
     car_obj.add_frame(on_boxes)
 
-    #draw new boxes
+    #draw processed boxes
     output_image = draw_labeled_bboxes(annotate_img, car_obj.processed_boxes)
 
     return output_image
 
+
 def main():
-    #image mode
+    
     if (mode == 'image'):
+        #image mode
 
         #read images in directory
         images = os.listdir(img_dir)
@@ -264,36 +274,53 @@ def main():
         n_images = len(images)
         
         for i in range(n_images):
+            #iterate through ia=mages
 
             image = mpimg.imread(img_dir+images[i])
             
             #clear Line and car objects for each image
             myLine = Line()
             myLine.set_param([720, 1280], 3/110, 3.7/640)
-            frame_cars = cars(image_dim=image.shape[:2], box_threshold=2, input_mode=mode) #apply a higher threshold for images
+            frame_cars = cars(image_dim=image.shape[:2], box_threshold=1, input_mode=mode) #apply a higher threshold for images
 
-            output_image=process_image(image, car_obj=frame_cars, line_obj=myLine)
-          
+            #perform pipeline
+            output_image = process_image(image, car_obj=frame_cars, line_obj=myLine)
+              
+            #save image
             mpimg.imsave(img_out_dir+images[i], output_image)
 
-        
-        #mpimg.imsave("output_images/output1.jpg", output_image)
-        #plt.subplot(311)
-        #plt.imshow(boxed_image)
-        #plt.subplot(312)
-        #plt.imshow(labels[0], cmap='gray')
-        #plt.subplot(313)
-        #plt.imshow(output_image)
-        #plt.show()
-        ##iterating images in directory
-        #for i in range(n_images):
             
-    #video mode
+        #    plt.subplot(3,2,i+1)
+        #    plt.imshow(output_image)
+        #    plt.title('example: {}'.format(i+1))
+        #    #iterating images in directory
+        #plt.savefig('report_images/boxed_window.jpg')
+        #plt.show()
+
+        #plt.figure(figsize=(10,15))
+        
+        #for i in range(3):
+        #    image = mpimg.imread(img_dir+images[2*i])
+            
+        #    plt.subplot(3,2,2*i+1)
+        #    plt.imshow(image)
+        #    plt.subplot(3,2,2*i+2)
+        #    plt.imshow(heatmap[2*i], cmap='hot')
+
+        #plt.savefig('report_images/heatmaps.jpg')
+        #plt.show()
+            
+            
+    
     elif (mode == 'video'):
+        #video mode
+
         #Read video
         input_clip = VideoFileClip(video_dir)
+
         #process video frames
         output_clip = input_clip.fl_image(process_image)
+
         #save output video
         output_clip.write_videofile(video_dir_out, audio=False)
     

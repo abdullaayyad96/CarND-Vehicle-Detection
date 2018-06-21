@@ -11,6 +11,7 @@ import pickle
 from featureExtract import *
 from sklearn.model_selection import train_test_split
 from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
 from skimage.feature import hog
 
 #Training data directory
@@ -78,7 +79,7 @@ for file in archive_files:
             
             #append image features for the vehicle case
             vehicle_features.append(np.asarray(image_features))
-
+print('hai1')
             
 #reading features for non-vehicle images
 #accessing file in zip folder
@@ -110,7 +111,7 @@ for file in archive_files:
         
         #append image features for the non vehicle case
         non_vehicle_features.append(np.asarray(image_features))
-
+print('hai2')
 
 # Create an array stack of feature vectors
 features = np.vstack((vehicle_features, non_vehicle_features)).astype(np.float64)
@@ -129,7 +130,8 @@ train_features = X_scaler.transform(train_features)
 test_featueres = X_scaler.transform(test_featueres)
 
 #Define and train linear state vector calssifier
-clf = LinearSVC()
+#clf = LinearSVC()
+clf = SVC(kernel='linear')
 clf.fit(train_features, train_labels)
 
 #evaluating accuracy of classifier
@@ -137,7 +139,7 @@ accuracy = clf.score(test_featueres, test_labels)
 print("The accuracy of the classifier is: ", accuracy )
 
 #save model
-pickle.dump(clf, open('trained_SVC_model_YUV_HLS.sav', 'wb'))
-pickle.dump(X_scaler, open('X_scalar_YUV_HLS.sav', 'wb'))
+pickle.dump(clf, open('saved_files/trained_SVC_model_YUV_HLS2.sav', 'wb'))
+pickle.dump(X_scaler, open('saved_files/X_scalar_YUV_HLS2.sav', 'wb'))
 
 
