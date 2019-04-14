@@ -28,6 +28,7 @@ slide_mode = 'convolution'
 
 def undistort(img, camera_mtx, dist_coef):
     #return undistorted images based on camera matrix and distortion coefficients
+	
     return cv2.undistort(img, camera_mtx, dist_coef)
 
 def perspective_transform(img, src, dst):

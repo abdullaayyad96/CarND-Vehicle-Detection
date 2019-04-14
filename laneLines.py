@@ -5,56 +5,74 @@ class Line():
     def __init__(self):
         #A boolean to show whether lines were detected previously
         self.detected = False  
+		
         #Array of recent y and x points for left and right lines
         self.leftx = None
         self.lefty = None
         self.rightx = None
         self.righty = None
+		
         #are the last added values valid
         self.valid_new = False
+		
         #number of frames since last valid reading 
         self.last_valid_frame = 0
+		
         #dimensions of the images
         self.dim = None
+		
         #conversion parameters from pixel to actual dimesions
         self.ym_per_pix = None
         self.xm_per_pix = None
+		
         #matrix to convert polynomial from pixel to actual dimensions
         self.cvrt_mtx = None
+		
         #curvature of recent left and right lanes in pixel dimensions
         self.right_curv = None
         self.left_curv = None
+		
         #right and left polynomials of the most recent fit in pixel dimensions
         self.right_poly = [np.array([False])]  
         self.left_poly = [np.array([False])]  
+		
         #average curvature of left and right lanes in pixel dimensions
         self.avg_right_curv = None
         self.avg_left_curv = None
+		
         #average curvature of left and right lanes in actual dimensions
         self.act_avg_right_curv = None
         self.act_avg_left_curv = None
+		
         #radius of curvature of the line in  actual dimensions
         self.radius_of_curvature = None 
+		
         #polynomial coefficients averaged in pixel dimensions
         self.avg_right_poly = [np.array([False])]  
         self.avg_left_poly = [np.array([False])]
+		
         #polynomial coefficients averaged in actual dimensions
         self.act_avg_right_poly = [np.array([False])]  
         self.act_avg_left_poly = [np.array([False])]
+		
         #averaging factor
         self.avg_factor = 0.8
+		
         #average distance between the two left and right lines
         self.lines_distance = 3.7
+		
         #distance between the left and right lines in recent frame
         self.recent_distance = 0
+		
         #distance between the left and right lines in the base of the recent frame
         self.base_distance = 0
+		
         #distance from the center of two lines in meter
         self.center_displacement = 0
         
     
     def set_param(self, image_shape, ym_per_pix, xm_per_pix):
-        #Setting parameters for use by functions in the object
+        #This function sets the parameters for use by functions in the object
 
         self.dim = image_shape
         self.ym_per_pix = ym_per_pix
@@ -62,7 +80,7 @@ class Line():
         self.cvrt_mtx = np.diag([ (self.xm_per_pix / self.ym_per_pix**2),  (self.xm_per_pix / self.ym_per_pix), self.xm_per_pix  ])
 
     def find_curvature(self, mode='recent'):
-        #accepts polynomial fit and pixel to actual dimension conversion parameters and returns curveture on the polynomial in actual dimensions 
+        #this functions accepts polynomial fit and pixel to actual dimension conversion parameters and returns curveture on the polynomial in actual dimensions 
 
         #defining evaluation point for y
         y_eval = self.dim[0]
@@ -85,6 +103,8 @@ class Line():
                 self.radius_of_curvature = np.inf
 
     def calc_displacement(self):
+		#This function calculates the displacement from the center of the lane
+	
         midpoint = self.dim[1]/2
         y_eval = self.dim[0]
 
@@ -95,8 +115,10 @@ class Line():
         self.center_displacement = self.xm_per_pix * (lane_center - midpoint)
 
     def calc_avg_distance(self, mode='recent'):
+		#This function calculates the distance between the two lane lines
+		
         y_eval = self.dim[0]
-        #calculating the average area between the two polynomials by integrating the differance between the two polynomials from 0 to y_eval
+        #calculating the average distance between the two polynomials by integrating the differance between the two polynomials from 0 to y_eval
         #calculating in pixel dimensions
         if(mode=='recent'):
             #perform calculations on recently added polynomials
@@ -108,6 +130,7 @@ class Line():
             self.lines_distance = avg_distance_pxl * self.xm_per_pix
     
     def sanity_check(self):
+		#This function performs sanity checks on recent state of lane lines
           
         #calculating average distance error between recently detected left and right lines compared to nominal value of 3.7m
         self.calc_avg_distance(mode='recent') #calculate the average distance between the two recent polynomials
@@ -142,12 +165,13 @@ class Line():
                 self.last_valid_frame = 0
     
     def cvrt_2_act(self):
-        #convert polynomials from pixel to actual dimensions in meter
+        #This function converts polynomials from pixel to actual dimensions in meter
+		
         self.act_avg_right_poly = np.matmul(self.cvrt_mtx, self.avg_right_poly)
         self.act_avg_left_poly = np.matmul(self.cvrt_mtx, self.avg_left_poly)
 
     def find_avg(self):
-        #Averaging new polynomials with previous values
+        #This function averages new polynomials with previous values
 
         if (self.detected):
             #if previous values exist
@@ -163,7 +187,8 @@ class Line():
         self.cvrt_2_act() #obtain a version of the average polynomials in actual dimensions in meters
 
     def fit_poly(self):
-        # Fit a second order polynomial to each line
+        #This function fits a second order polynomial to each line
+		
         self.left_poly = np.polyfit(self.lefty, self.leftx, 2)
         self.right_poly = np.polyfit(self.righty, self.rightx, 2)
 
@@ -176,7 +201,7 @@ class Line():
             self.calc_displacement()
 
     def add_points(self, lefty, leftx, righty, rightx):
-        #Add points of right and left lines for polynomial evaluation and fitting
+        #This functions adds points of right and left lines for polynomial evaluation and fitting
 
         if((len(lefty)>0) & (len(leftx)>0)): 
             self.leftx = leftx

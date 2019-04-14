@@ -7,23 +7,15 @@ import random
 import pickle
 import os
 from featureExtract import *
-from findLines import *
+from findLane import *
 from sklearn.svm import SVC
 from moviepy.editor import VideoFileClip
 from cars import cars
 from laneLines import Line
 
-#set video or image mode
-mode = 'image'
-#images directory
-img_dir = 'test_images/'
-img_out_dir = 'output_images/'
-#videos directory
-video_dir = 'test_videos/project_video.mp4'
-video_dir_out = 'output_videos/project_video.mp4'
 
 #create instance of car detection object
-frame_cars = cars(image_dim=[720, 1280], box_threshold=1.5, input_mode=mode)
+frame_cars = cars(image_dim=[720, 1280], box_threshold=1.5)
 
 #Create instance of line class
 myLine = Line()
@@ -233,7 +225,7 @@ def process_image(frame, car_obj=frame_cars, line_obj=myLine):
 
         #annotating image 
         annotate_img = cv2.putText(added_img,"Curveture radius: {0:.2f} km".format(line_obj.radius_of_curvature/1000), (100,100), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 2)
-        annotate_img = cv2.putText(annotate_img,"Displacement from lane center: {0:.2f} cm".format(line_obj.center_displacement), (100,150), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 2)
+        annotate_img = cv2.putText(annotate_img,"Displacement from lane center: {0:.2f} m".format(line_obj.center_displacement), (100,150), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 2)
 
     else:
         #if no line were detected return an image marked with the desired text
@@ -261,46 +253,68 @@ def process_image(frame, car_obj=frame_cars, line_obj=myLine):
     return output_image
 
 
-def main():
-    
-    if (mode == 'image'):
-        #image mode
+def main(argvs):
 
-        #read images in directory
-        images = os.listdir(img_dir)
-        for image in images:
-            if (image[-3:]!="jpg"):
-                images.remove(image)
-        n_images = len(images)
-        
-        for i in range(n_images):
-            #iterate through ia=mages
+	input_type = ''	
+	input_dir = ''
+	output_dir = ''
 
-            image = mpimg.imread(img_dir+images[i])
-            
-            #clear Line and car objects for each image
-            myLine = Line()
-            myLine.set_param([720, 1280], 3/110, 3.7/640)
-            frame_cars = cars(image_dim=image.shape[:2], box_threshold=1, input_mode=mode) #apply a higher threshold for images
+	if (len(argvs) == 4):
+		#set video or image mode
+		input_type = argvs[1]	
+		#input & output directories directory
+		input_dir = argvs[2]
+		output_dir = argvs[3]
+		
+		if (input_dir[-1] != "/") and (input_dir[-3:] != "mp4"):
+			input_dir += "/"
+		
+		if output_dir[-1] != "/" and (output_dir[-3:] != "mp4"):
+			output_dir += "/"
+	else:
+		print("3 arguments are required, only %s were provided" % (len(argvs)-1))
+		sys.exit()	
+		
+		
+	if (input_type == 'image'):
+		#image mode
 
-            #perform pipeline
-            output_image = process_image(image, car_obj=frame_cars, line_obj=myLine)
-              
-            #save image
-            mpimg.imsave(img_out_dir+images[i], output_image)          
-            
-    
-    elif (mode == 'video'):
-        #video mode
+		#read images in directory
+		images = os.listdir(input_dir)
+		for image in images:
+			if (image[-3:]!="jpg"):
+				images.remove(image)
+		n_images = len(images)
+		
+		for i in range(n_images):
+			#iterate through ia=mages
 
-        #Read video
-        input_clip = VideoFileClip(video_dir)
+			image = mpimg.imread(input_dir+images[i])
+			
+			#clear Line and car objects for each image
+			myLine = Line()
+			myLine.set_param([720, 1280], 3/110, 3.7/640)
+			frame_cars = cars(image_dim=image.shape[:2], box_threshold=1, input_mode=input_type) #apply a higher threshold for images
 
-        #process video frames
-        output_clip = input_clip.fl_image(process_image)
+			#perform pipeline
+			output_image = process_image(image, car_obj=frame_cars, line_obj=myLine)
+			  
+			#save image
+			mpimg.imsave(output_dir+images[i], output_image)    	
+			
 
-        #save output video
-        output_clip.write_videofile(video_dir_out, audio=False)
-    
+	elif (input_type == 'video'):
+		#video mode
 
-main()
+		#Read video
+		input_clip = VideoFileClip(input_dir)
+		
+		#process video frames
+		output_clip = input_clip.fl_image(process_image)
+
+		#save output video
+		output_clip.write_videofile(output_dir, audio=False)
+
+
+main(sys.argv)
+sys.exit()
