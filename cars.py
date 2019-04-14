@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 from scipy.ndimage.measurements import label
 
 class cars():
@@ -11,6 +12,8 @@ class cars():
         self.processed_boxes = None
         #Number of processed frames
         self.nframes = 0
+		#image dimensions
+        self.image_dim = image_dim
         #heatmap to keep track of boxes
         self.heatmap = np.zeros((image_dim[0], image_dim[1])).astype(np.float)
         #threshold for boxes to detect as objects
@@ -30,8 +33,12 @@ class cars():
 
     def apply_threshold(self, heatmap, threshold):
         # Zero out pixels below the threshold
-        thresh_heatmap = np.copy(heatmap)
-        thresh_heatmap[heatmap <= threshold] = 0
+		
+        #apply averaging filter to the heatmap
+        avg_filter = np.ones(( int(self.image_dim[0]/8), int(self.image_dim[1]/8) )) * 64 / (self.image_dim[0] * self.image_dim[1])
+        avg_heatmap = scipy.signal.convolve2d(heatmap, avg_filter, mode='same') + 0.5 * heatmap
+        thresh_heatmap = np.copy(avg_heatmap)
+        thresh_heatmap[avg_heatmap <= threshold] = 0
         # Return thresholded map
         return thresh_heatmap
 
@@ -44,7 +51,7 @@ class cars():
         else:
             #if image mode, avergae newly obtained heatmap with previous heatmap
             #averaging_val = 0.975 *(1-np.exp(-self.nframes/2))
-            averaging_val = 0.9 
+            averaging_val = 0.95 
             self.heatmap = averaging_val*self.heatmap + (1-averaging_val)*new_heatmap
             
         self.nframes += 1 #update number of processed frames
