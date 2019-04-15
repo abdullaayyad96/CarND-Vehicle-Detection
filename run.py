@@ -195,62 +195,62 @@ def find_cars(img, color_spaces, y_start, y_stop, scales, svc, scaler, orient, p
                
     return boxes
 
-def process_image(frame, car_obj=frame_cars, line_obj=myLine):
-    #undistort frame
-    frame = undistort(frame, mtx, dist)
+def process_image(frame, car_obj=frame_cars, line_obj=myLine, mode='video'):
+	#perform the pipeline on an image
+	#undistort frame
+	frame = undistort(frame, mtx, dist)
 
-    #Running line detection code
+	#Running line detection code
 
-    #perform color and sobel thresholding
-    thresh_image, color_img, region_masked_img = threshold(frame)  
+	#perform color and sobel thresholding
+	thresh_image, color_img, region_masked_img = threshold(frame)  
   
-    #apply perspective transform
-    per_img = perspective_transform(thresh_image, source_points, destination_points)
+	#apply perspective transform
+	per_img = perspective_transform(thresh_image, source_points, destination_points)
    
 
-    #finding and fitting lane lines
-    line_finding_img = find_lines(per_img, line_obj, slide_mode)
-    
-    if(line_obj.detected):
-        #if lines were detected
+	#finding and fitting lane lines
+	line_finding_img = find_lines(per_img, line_obj, slide_mode)
+	
+	if(line_obj.detected):
+		#if lines were detected
 
-        #marking lane lines
-        wraped_marked_img = plot(per_img, line_obj)
+		#marking lane lines
+		wraped_marked_img = plot(per_img, line_obj)
 
-        #applying inverse perspective transform on marked image
-        marked_img = perspective_transform(wraped_marked_img, destination_points, source_points)
+		#applying inverse perspective transform on marked image
+		marked_img = perspective_transform(wraped_marked_img, destination_points, source_points)
 
-        #adding marked image to original image
-        added_img = cv2.addWeighted(frame, 1, marked_img, 0.5, 0)
+		#adding marked image to original image
+		added_img = cv2.addWeighted(frame, 1, marked_img, 0.5, 0)
 
-        #annotating image 
-        annotate_img = cv2.putText(added_img,"Curveture radius: {0:.2f} km".format(line_obj.radius_of_curvature/1000), (100,100), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 2)
-        annotate_img = cv2.putText(annotate_img,"Displacement from lane center: {0:.2f} m".format(line_obj.center_displacement), (100,150), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 2)
+		#annotating image 
+		annotate_img = cv2.putText(added_img,"Curveture radius: {0:.2f} km".format(line_obj.radius_of_curvature/1000), (100,100), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 2)
+		annotate_img = cv2.putText(annotate_img,"Displacement from lane center: {0:.2f} m".format(line_obj.center_displacement), (100,150), cv2.FONT_HERSHEY_COMPLEX, 1, 255, 2)
 
-    else:
-        #if no line were detected return an image marked with the desired text
-        annotate_img = cv2.putText(input_img,"No Line Detected", (100,100), cv2.FONT_HERSHEY_COMPLEX, 1, 255)
+	else:
+		#if no line were detected return an image marked with the desired text
+		annotate_img = cv2.putText(input_img,"No Line Detected", (100,100), cv2.FONT_HERSHEY_COMPLEX, 1, 255)
 
-    #Searching cars
-    
-    #define scales and range to which each scale is applied
-    scales = [2, 1.5, 1]
-    y_start = [550, 420, 400]
-    y_stop = [700, 620, 510]
+	#Searching for cars
+	#define scales and range to which each scale is applied
+	scales = [2, 1.5, 1]
+	y_start = [550, 420, 400]
+	y_stop = [700, 620, 510]
 
-    #Apply sliding window search and obtain windows with detected vehicles
-    on_boxes = find_cars(frame, color_spaces, y_start, y_stop, scales, clf, X_scaler, orient, pix_per_cell, cell_per_block, channels, spatial_size, hist_bins, hist_feat, spatial_feat)
+	#Apply sliding window search and obtain windows with detected vehicles
+	on_boxes = find_cars(frame, color_spaces, y_start, y_stop, scales, clf, X_scaler, orient, pix_per_cell, cell_per_block, channels, spatial_size, hist_bins, hist_feat, spatial_feat)
 
-    #draw the detected boxes
-    boxed_image = draw_boxes(frame, on_boxes)
+	#draw the detected boxes
+	boxed_image = draw_boxes(frame, on_boxes)
 
-    #pass to cars object for processing
-    car_obj.add_frame(on_boxes)
+	#pass to cars object for processing
+	car_obj.add_frame(on_boxes)
 
-    #draw processed boxes
-    output_image = draw_labeled_bboxes(annotate_img, car_obj.processed_boxes)
-
-    return output_image
+	#draw processed boxes
+	output_image = draw_labeled_bboxes(annotate_img, car_obj.processed_boxes)
+		
+	return output_image
 
 
 def main(argvs):

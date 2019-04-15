@@ -1,37 +1,59 @@
 # Vehicle Detection
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
+[image1]: output_images/test4.jpg "sample output"
+[image2]: output_videos/project_video_Trim.gif "output video"
 
-In this project, your goal is to write a software pipeline to detect vehicles in a video (start with the test_video.mp4 and later implement on full project_video.mp4), but the main output or product we want you to create is a detailed writeup of the project.  Check out the [writeup template](https://github.com/udacity/CarND-Vehicle-Detection/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup.  
+## Overview
 
-Creating a great writeup:
----
-A great writeup should include the rubric points as well as your description of how you addressed each point.  You should include a detailed description of the code used in each step (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
+In this project, the goal is to develop a software pipeline to detect vehicles and lane lines in images and videos. A combination of machine learning and image processing techniques were combined to achieve the desired results.
 
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
-
-You can submit your writeup in markdown or use another method and submit a pdf instead.
-
-The Project
----
+![alt_text][image1]
 
 The goals / steps of this project are the following:
 
 * Perform a Histogram of Oriented Gradients (HOG) feature extraction on a labeled training set of images and train a classifier SVM classifier
-* Optionally, you can also apply a color transform and append binned color features, as well as histograms of color, to your HOG feature vector. 
-* Note: for those first two steps don't forget to normalize your features and randomize a selection for training and testing.
-* Implement a sliding-window technique and use your trained classifier to search for vehicles in images.
-* Run your pipeline on a video stream (start with the test_video.mp4 and later implement on full project_video.mp4) and create a heat map of recurring detections frame by frame to reject outliers and follow detected vehicles.
+* apply a color transform and append binned color features, as well as histograms of color, to your HOG feature vector. 
+* Implement a sliding-window technique and use the trained classifier to search for vehicles in images.
+* Run your pipeline on a video stream.
 * Estimate a bounding box for vehicles detected.
 
-Here are links to the labeled data for [vehicle](https://s3.amazonaws.com/udacity-sdc/Vehicle_Tracking/vehicles.zip) and [non-vehicle](https://s3.amazonaws.com/udacity-sdc/Vehicle_Tracking/non-vehicles.zip) examples to train your classifier.  These example images come from a combination of the [GTI vehicle image database](http://www.gti.ssr.upm.es/data/Vehicle_database.html), the [KITTI vision benchmark suite](http://www.cvlibs.net/datasets/kitti/), and examples extracted from the project video itself.   You are welcome and encouraged to take advantage of the recently released [Udacity labeled dataset](https://github.com/udacity/self-driving-car/tree/master/annotations) to augment your training data.  
+## Dependancies
 
-Some example images for testing your pipeline on single frames are located in the `test_images` folder.  To help the reviewer examine your work, please save examples of the output from each stage of your pipeline in the folder called `ouput_images`, and include them in your writeup for the project by describing what each image shows.    The video called `project_video.mp4` is the video your pipeline should work well on.  
+- Python3
+- NumPy
+- OpenCV
+- SciPy
+- scikit-learn
+- MoviePy
+- Matplotlib
+- pickle
 
-**As an optional challenge** Once you have a working pipeline for vehicle detection, add in your lane-finding algorithm from the last project to do simultaneous lane-finding and vehicle detection!
 
-**If you're feeling ambitious** (also totally optional though), don't stop there!  We encourage you to go out and take video of your own, and show us how you would implement this project on a new video!
+## Usage
 
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+### Running on images
+To run the pipeline on a set of images, run the following command:
+```
+python run.py image input_directory output_directory
+```
+The script will automatically iterate through all the image in the directory and apply the pipeline. Sample images are provided in 
+`test_images` with corresponding outputs in `output_images`.
+
+### Testing on a video
+To run the script on an mp4 video, the following command can be used:
+```
+python run.py video path_to_video.mp4 output_video.mp4
+```
+A sample video is provided in `test_videos` with it's corresponding output in `output_videos`. Here's a link to my [video result](output_videos/project_video.mp4).
+
+![alt_text][image2]
+
+
+## Technical Overview
+
+The lane detection pipeline was adopt from this [repository](https://github.com/abdullaayyad96/CarND-Advanced-Lane-Lines). Feel free to visit it for a thorough overview of the lane detection 
+
+As for the vehicle detection pipeline, a support vector machine was trained on a a combination of the [GTI vehicle image database](http://www.gti.ssr.upm.es/data/Vehicle_database.html) and the [KITTI vision benchmark suite](http://www.cvlibs.net/datasets/kitti/). The machine learning algorithim utilizes Histogram of Oriented Gradients 'HOG', Spatial Bining and Color Histograms as input data to make classification decisions. For more details regarding the technical implementation of the pipeline and the machine learning implemention, refer to the [technical writeup](technical_writeup.md).
+
 
